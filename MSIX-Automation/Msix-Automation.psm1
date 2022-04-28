@@ -624,6 +624,11 @@ function Save-MsixFromUnpacked(){
             $makeAppx = $tool.FullName
         }
 
+        if (Test-Path -Path "$InputPath.msix")
+        {
+            Remove-Item -Path "$InputPath.msix" -Force
+        }
+
         # Repackage into MSIX
         & $makeAppx pack /d $InputPath /p "$InputPath.msix"
     }
