@@ -579,8 +579,10 @@ function Set-MSIXPackageSignature(){
                 Import-PfxCertificate -Exportable -Password $Password -FilePath $Certificate -CertStoreLocation Cert:\LocalMachine\My
             }
 
+            $subjectName = $publisher -replace '^.*?='
+
             # Sign the MSIX
-            & $signtool sign /sm /fd sha256 /a /n $SubjectName $MsixFile
+            & $signtool sign /sm /fd sha256 /a /n $subjectName $MsixFile
         }
     }
 
@@ -728,5 +730,497 @@ function Get-CertPublisher(){
     catch {
         Write-Error -Message $_.Exception.Message;
         break;
+    }
+}
+
+<#
+    .SYNOPSIS
+        This function will modify the icon for an MSIX package that has been opened with the
+        Open-Msix function.
+
+    .PARAMETER ManifestPath
+        Specifies the full path to the appx manifest. This will be the path of the AppxManifest.xml
+        inside the file structure created by the Open-Msix function.
+
+    .PARAMETER NewIcon
+        Specifies the full path to the icon file that you wish to change the MSIX icon to.
+#>
+function Set-MsixIcon(){
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $ManifestPath,
+
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $NewIcon
+    )
+    try
+    {
+        # Set up
+        $assetsDir = Join-Path -Path (Get-Item -Path $ManifestPath).Directory -ChildPath '\Assets'
+        $fileName = (Get-Item -Path $NewIcon).Name
+
+        # Copy icon info opened msix package
+        Copy-Item -Path $NewIcon -Destination $assetsDir -Force
+
+        # Modify the manifest
+        $logo = Select-Xml -Path $ManifestPath -XPath "//*[local-name()='Logo']"
+        $logo.Node.'#text' = "Assets\$fileName"
+
+        # Save the manifest
+        $logo.Node.OwnerDocument.Save($manifestPath)
+    }
+    catch
+    {
+        Write-Error -Message $_.Exception.Message;
+    }
+}
+
+<#
+    .SYNOPSIS
+        This function adds attributes to a specified appx manifest. These will support modifying the
+        appx manifest, such as adding missing application entry points or adding application execution
+        aliases. Use this function to modify the manifest after opening the msix package with the
+        Open-Msix function.
+
+    .PARAMETER ManifestPath
+        Specifies the full path to the appx manifest. This will be the path of the AppxManifest.xml
+        inside the file structure created by the Open-Msix function.
+
+    .PARAMETER Node
+        Specifies the node that you wish to add.
+
+        Values Include: uap, uap2, uap3, uap10, uap11, desktop, and rescap
+#>
+function Add-ManifestAttributes(){
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $ManifestPath,
+
+	    [Parameter(Mandatory=$true)]
+	    [ValidateNotNullOrEmpty()]
+	    [ValidateSet('uap', 'uap2', 'uap3', 'uap10', 'uap11', 'desktop', 'rescap')]
+	    [string]
+	    $Node
+    )
+    try
+    {
+        # Get the manifest content
+        [xml]$xml = Get-Content -Path $ManifestPath
+
+        # Assign values based on parameter specified
+        switch ($Node)
+        {
+            'uap'     { $value = 'http://schemas.microsoft.com/appx/manifest/uap/windows10' }
+            'uap2'    { $value = 'http://schemas.microsoft.com/appx/manifest/uap/windows10/2' }
+            'uap3'    { $value = 'http://schemas.microsoft.com/appx/manifest/uap/windows10/3' }
+            'uap10'   { $value = 'http://schemas.microsoft.com/appx/manifest/uap/windows10/10' }
+            'uap11'   { $value = 'http://schemas.microsoft.com/appx/manifest/uap/windows10/11' }
+            'desktop' { $value = 'http://schemas.microsoft.com/appx/manifest/desktop/windows10' }
+            'rescap'  { $value = 'http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities' }
+        }
+
+        $ignores = $xml.Package.IgnorableNamespaces
+
+        # Add the new values to the manifest
+        if ($xml.Package.Attributes.'#text' -notcontains $value)
+        {
+            $element = $xml.CreateAttribute("xmlns:$Node")
+            $element.InnerXML = $value
+            $xml.Package.Attributes.Append($element)
+            $ignores = $ignores + " $Node"
+            $xml.Package.IgnorableNamespaces = $ignores
+
+            # Save the manifest
+            $xml.Save($ManifestPath)
+        }
+    }
+    catch
+    {
+        Write-Error -Message $_.Exception.Message;
+    }
+}
+
+<#
+    .SYNOPSIS
+        This function adds an application entry point to the appx manifest. Use this function when the msix
+        packaging tool command line interface does not add an application entry point to the manifest.
+
+    .PARAMETER ManifestPath
+        Specifies the full path to the appx manifest. This will be the path of the AppxManifest.xml
+        inside the file structure created by the Open-Msix function.
+
+    .PARAMETER ExecutablePath
+        Specifies the full path to the executable file inside the unpacked MSIX \VFS directory that
+        you are adding an application entry point for.
+
+    .PARAMETER NewIcon
+        Specifies the full path to the icon file that you wish to set as the MSIX icon.
+#>
+function Add-ManifestApplication(){
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $ManifestPath,
+
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $ExecutablePath,
+
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $NewIcon
+    )
+    try
+    {
+        # Set a new icon
+        Set-MsixIcon -ManifestPath $ManifestPath -NewIcon $NewIcon
+        $icon = (Get-Item -Path $NewIcon).Name
+
+        # Handle uap declarations
+        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'uap'
+        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'uap10'
+        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'rescap'
+
+        # Get the manifest content
+        [xml]$xml = Get-Content -Path $ManifestPath
+
+        # Parse out executable Name and VFS Path
+        $executableVfs = 'VFS' + ($ExecutablePath -replace '^.*?VFS')
+        $displayName = (Get-Item -Path $ExecutablePath).BaseName
+
+        if ($displayName[0] -match '[0-9]')
+        {
+            switch ($displayName[0])
+            {
+                '0' {$replace = 'Zero'}
+                '1' {$replace = 'One'}
+                '2' {$replace = 'Two'}
+                '3' {$replace = 'Three'}
+                '4' {$replace = 'Four'}
+                '5' {$replace = 'Five'}
+                '6' {$replace = 'Six'}
+                '7' {$replace = 'Seven'}
+                '8' {$replace = 'Eight'}
+                '9' {$replace = 'Nine'}
+            }
+            $displayName = $replace+$displayName.Substring(1)
+        }
+
+        if ($xml.Package.Applications.Application.Executable -like $executableVfs)
+        {
+            throw "An application already exists for $ExecutablePath"
+        }
+
+        # Handle malformed names produced as an artifact of unzip
+        if ($executableVfs -like "*%20*")
+        {
+            $executableVfs = $executableVfs.Replace("%20"," ")
+            $vfsPath = (Get-Item -Path $ManifestPath).DirectoryName + '\VFS'
+            Rename-UnpackedFiles -VfsPath $vfsPath
+        }
+
+        # Set up application to create and modify
+        if ($null -eq $xml.Package.Applications)
+        {
+            $element = $xml.CreateElement('Applications','http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+            $application = $xml.CreateElement('Application','http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+            $element.AppendChild($application)
+            $xml.Package.AppendChild($element)
+        }
+        else
+        {
+            $element = $xml.Package.Applications
+            $application = $xml.CreateElement('Application','http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+            $element.AppendChild($application)
+        }
+
+        #Add attributes to application
+        $attributes = @(
+            @{
+                Name  = 'Id'
+                Value = "$displayName"
+            }
+            @{
+                Name  = 'Executable'
+                Value = "$executableVfs"
+            }
+            @{
+                Name  = 'EntryPoint'
+                Value = 'Windows.FullTrustApplication'
+            }
+        )
+
+        foreach ($attrib in $attributes)
+        {
+            $add = $xml.CreateAttribute($attrib.Name)
+            $add.InnerXML = $attrib.value
+            $application.Attributes.Append($add)
+        }
+
+        # Add uap visual elements
+        $vis = $xml.CreateElement('uap:VisualElements','http://schemas.microsoft.com/appx/manifest/uap/windows10')
+        $application.AppendChild($vis)
+
+        # Add attributes to uap visual elements
+        $visAttributes = @(
+            @{
+                Name  = 'BackgroundColor'
+                Value = 'transparent'
+            }
+            @{
+                Name  = 'DisplayName'
+                Value = "$displayName"
+            }
+            @{
+                Name  = 'Square150x150Logo'
+                Value = "Assets\$icon"
+            }
+            @{
+                Name  = 'Square44x44Logo'
+                Value = "Assets\$icon"
+            }
+            @{
+                Name  = 'Description'
+                Value = "$displayName"
+            }
+        )
+
+        foreach ($attrib in $visAttributes)
+        {
+            $add = $xml.CreateAttribute($attrib.Name)
+            $add.InnerXML = $attrib.value
+            $vis.Attributes.Append($add)
+        }
+
+        # Save the manifest
+        $xml.Save($ManifestPath)
+    }
+    catch
+    {
+        Write-Error -Message $_.Exception.Message;
+    }
+}
+
+<#
+    .SYNOPSIS
+        This function replaces '%20' in directory and file names in an unzipped .msix package with a space
+        character. An artifact of unzipping the .msix is that spaces are replaced with '%20'. If a path with
+        '%20' is specified in the manifest, the makeappx.exe tool will throw when attempting to package.
+
+    .PARAMETER VfsPath
+        Specifies the VFS directory of the unzipped .msix package.
+#>
+function Rename-UnpackedFiles(){
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $VfsPath
+    )
+    try
+    {
+        $badNames = (Get-ChildItem -Path $VfsPath -Recurse | Where-Object -FilterScript {$_.Name -like "*%20*"} | Select-Object FullName).FullName
+
+        While ($badNames.count -gt 0)
+        {
+            foreach ($name in $badNames)
+            {
+                Rename-Item -Path $name -NewName $name.Replace("%20"," ") -ErrorAction SilentlyContinue
+            }
+            $badNames = (Get-ChildItem -Path $VfsPath -Recurse | Where-Object -FilterScript {$_.Name -like "*%20*"} | Select-Object FullName).FullName
+        }
+    }
+    catch
+    {
+        Write-Error -Message $_.Exception.Message;
+    }
+}
+
+<#
+    .SYNOPSIS
+        This function removes services from an unpacked MSIX package. Each service has it's own entry in the
+        manifest as an application. Removing the extensions from the application removes the service. Use this
+        function when unnecessary services are included in the package. When a package contains services,
+        administrative permissions are required to install the MSIX. Removing the services removes the requirement
+        for administrative permissions. A good example of this would be a service that updates an application. You
+        wouldn't want the application packaged as an MSIX trying to update on its own and would want to remove the
+        service regardless of administrative permission blockers.
+
+    .PARAMETER ManifestPath
+        Specifies the full path to the appx manifest. This will be the path of the AppxManifest.xml
+        inside the file structure created by the Open-Msix function.
+
+    .PARAMETER ServiceName
+        Specifies the ID of the application node inside the manifest that corresponds with the service you wish to
+        remove.
+#>
+function Remove-MsixService(){
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $ManifestPath,
+
+	    [Parameter(Mandatory=$true)]
+	    [ValidateNotNullOrEmpty()]
+	    [string]
+	    $ServiceName
+    )
+    try
+    {
+        # Get the manifest content
+        [xml]$xml = Get-Content -Path $ManifestPath
+
+        # Remove extensions
+        $application = $xml.package.Applications.Application | Where-Object -FilterScript {$_.ID -eq $ServiceName}
+
+        if ($null -eq $application){
+            throw "$ServiceName was not found in the manifest. Please validate your input and ensure it corresponds with an Application ID in the manifest."
+        }
+
+        ($xml.package.Applications.Application | Where-Object -FilterScript {$_.ID -eq $ServiceName}).RemoveChild($application.Extensions)
+
+        # Save the manifest
+        $xml.Save($ManifestPath)
+    }
+    catch
+    {
+        Write-Error -Message $_.Exception.Message;
+    }
+}
+
+
+<#
+    .SYNOPSIS
+        This function adds an application execution alias extension to the specified application in the manifest.
+        The purpose of this is to allow calling of an executable from the command line outside of the .msix package
+        once installed on a target machine.
+
+    .PARAMETER ManifestPath
+        Specifies the full path to the appx manifest. This will be the path of the AppxManifest.xml
+        inside the file structure created by the Open-Msix function.
+
+    .PARAMETER ApplicationId
+        Specifies the ID of the application node inside the manifest that corresponds with the service you wish to
+        remove.
+#>
+function Add-ExecutionAlias(){
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory=$true)]
+	    [ValidateScript({(Test-Path -Path $_)})]
+	    [System.IO.FileInfo]
+	    $ManifestPath,
+
+        [Parameter(Mandatory=$true)]
+	    [ValidateNotNullOrEmpty()]
+	    [string]
+	    $ApplicationId
+    )
+    try
+    {
+        # Handle uap declarations
+        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'uap3'
+        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'desktop'
+
+        # Get the manifest content
+        [xml]$xml = Get-Content -Path $ManifestPath
+
+        # Get executable to point the alias to
+        $application = $xml.package.Applications.Application | Where-Object -FilterScript {$_.ID -eq $ApplicationId}
+
+        if ($null -eq $application){
+            throw "$ApplicationId was not found in the manifest. Please validate your input and ensure it corresponds with an Application ID in the manifest."
+        }
+        $executableVfs = $application.Executable
+
+        # Handle malformed names produced as an artifact of unzip
+        if ($executableVfs -like "*%20*")
+        {
+            $executableVfs = $executableVfs.Replace("%20"," ")
+            $vfsPath = (Get-Item -Path $ManifestPath).DirectoryName + '\VFS'
+            Rename-UnpackedFiles -VfsPath $vfsPath
+        }
+
+        # Parse out the alias name
+        $aliasName = $executableVfs.Split('\')[-1]
+
+        # Set up extensions
+        if ($null -eq $application.Extensions)
+        {
+            $extensions = $xml.CreateElement('Extensions','http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+            $extension = $xml.CreateElement('uap3:Extension','http://schemas.microsoft.com/appx/manifest/uap/windows10/3')
+            $extensions.AppendChild($extension)
+            $application.AppendChild($extensions)
+        }
+        else
+        {
+            $extensions = $application.Extensions
+            $extension = $xml.CreateElement('uap3:Extension','http://schemas.microsoft.com/appx/manifest/uap/windows10/3')
+            $extensions.AppendChild($extension)
+        }
+
+        # Add extension attributes
+        $attributes = @(
+            @{
+                Name  = 'Category'
+                Value = 'windows.appExecutionAlias'
+            }
+            @{
+                Name  = 'Executable'
+                Value = "$executableVfs"
+            }
+            @{
+                Name  = 'EntryPoint'
+                Value = 'Windows.FullTrustApplication'
+            }
+        )
+
+        foreach ($attrib in $attributes)
+        {
+            $add = $xml.CreateAttribute($attrib.Name)
+            $add.InnerXML = $attrib.value
+            $extension.Attributes.Append($add)
+        }
+
+        # Add application execution alias to extension
+        $alias = $xml.CreateElement('uap3:AppExecutionAlias','http://schemas.microsoft.com/appx/manifest/uap/windows10/3')
+        $extension.AppendChild($alias)
+
+        # Add desktop execution alias to the uap3 object
+        $desktop = $xml.CreateElement('desktop:ExecutionAlias','http://schemas.microsoft.com/appx/manifest/desktop/windows10')
+        $alias.AppendChild($desktop)
+
+        # Add the executable to the alias as an attribute
+        $add = $xml.CreateAttribute('Alias')
+        $add.InnerXML = $aliasName
+        $desktop.Attributes.Append($add)
+
+        # Save the manifest
+        $xml.Save($ManifestPath)
+    }
+    catch
+    {
+        Write-Error -Message $_.Exception.Message;
     }
 }

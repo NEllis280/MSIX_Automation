@@ -17,7 +17,7 @@
         the .msix file.
 
     .Parameter InstallerPath
-        Specifies the path to the installation media for the Army Alert Tool.
+        Specifies the path to the installation media.
 
     .Parameter ModulePath
         Specifies the path on your local machine to the MSIX-Automation module .psm1 file.
@@ -122,7 +122,8 @@ Stop-Service -Name wuauserv -Force
 $displayName = "$appName$msixVersion"
 ConvertTo-Msix -PackageName $msixName -PackageDisplayName $displayName -PublisherName $publisherName -PublisherDisplayName $publisherDisplayName -Version $msixVersion -InstallerPath "$InstallerPath" -OutputPath $msixPath -Arguments $arguments
 
-if ((Get-ChildItem -Path "C:\MSIXPackages\$displayName").Name -NotContains "$displayName.msix") {
+if ((Get-ChildItem -Path "C:\MSIXPackages\$displayName").Name -NotContains "$displayName.msix")
+{
     Throw "MSIX Conversion Failed."
 }
 

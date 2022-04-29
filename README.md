@@ -16,6 +16,11 @@ is performed by the winget utility.
 how to use the MSIX-Automation module to provide a file path on the local machine to an
 existing installer and then package it into .msix format.
 
+- **ConvertTo-MSIXExampleExecutionAlias.ps1**: This script serves as an example of
+how to use the MSIX-Automation module to package into .msix format, and perform additional
+edits to customize. Here, the application is opened and an execution alias is added,
+allowing for calling the app via command line. The package is then repacked and signed.
+
 - **MSIX-LOBIntune Module**: This is a PowerShell Module that contains functions
 necessary to upload an .msix application to the Intune service or to update an
 existing .msix application.
