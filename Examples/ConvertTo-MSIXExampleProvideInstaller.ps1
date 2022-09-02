@@ -107,7 +107,7 @@ else
 }
 
 # Detect .msi product version
-$properties = Get-MSIProperties -path $InstallerPath
+$properties = Get-MSIInformation -path $InstallerPath
 [string]$version = $properties.ProductVersion
 
 # Do version translation for .msix handling

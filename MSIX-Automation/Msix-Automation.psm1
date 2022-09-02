@@ -572,7 +572,7 @@ function Set-MSIXPackageSignature(){
         {
             # Check for cert in machine publisher store and add if not present
             $publisher = Get-CertPublisher -Certificate $Certificate -Password $Password
-            $cert = (dir Cert:\LocalMachine\my\ -CodeSigningCert) | Where-Object -FilterScript {$_.Subject -match "$publisher"}
+            $cert = (Get-ChildItem -Path 'Cert:\LocalMachine\my\' -CodeSigning) | Where-Object -FilterScript {$_.Subject -match "$publisher"}
 
             if ($null -eq $cert)
             {
@@ -648,7 +648,7 @@ function Save-MsixFromUnpacked(){
     .PARAMETER Path
         Specifies the full path to the .msi file to get the properties from.
 #>
-function Get-MSIProperties {
+function Get-MSIInformation {
     param
     (
       [Parameter(Mandatory=$true)]
@@ -797,7 +797,7 @@ function Set-MsixIcon(){
 
         Values Include: uap, uap2, uap3, uap10, uap11, desktop, and rescap
 #>
-function Add-ManifestAttributes(){
+function Add-ManifestAttribute(){
     [CmdletBinding()]
     param
     (
@@ -892,9 +892,9 @@ function Add-ManifestApplication(){
         $icon = (Get-Item -Path $NewIcon).Name
 
         # Handle uap declarations
-        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'uap'
-        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'uap10'
-        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'rescap'
+        Add-ManifestAttribute -ManifestPath $ManifestPath -Node 'uap'
+        Add-ManifestAttribute -ManifestPath $ManifestPath -Node 'uap10'
+        Add-ManifestAttribute -ManifestPath $ManifestPath -Node 'rescap'
 
         # Get the manifest content
         [xml]$xml = Get-Content -Path $ManifestPath
@@ -931,7 +931,7 @@ function Add-ManifestApplication(){
         {
             $executableVfs = $executableVfs.Replace("%20"," ")
             $vfsPath = (Get-Item -Path $ManifestPath).DirectoryName + '\VFS'
-            Rename-UnpackedFiles -VfsPath $vfsPath
+            Rename-UnpackedMSIX -VfsPath $vfsPath
         }
 
         # Set up application to create and modify
@@ -1025,7 +1025,7 @@ function Add-ManifestApplication(){
     .PARAMETER VfsPath
         Specifies the VFS directory of the unzipped .msix package.
 #>
-function Rename-UnpackedFiles(){
+function Rename-UnpackedMSIX(){
     [CmdletBinding()]
     param
     (
@@ -1140,8 +1140,8 @@ function Add-ExecutionAlias(){
     try
     {
         # Handle uap declarations
-        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'uap3'
-        Add-ManifestAttributes -ManifestPath $ManifestPath -Node 'desktop'
+        Add-ManifestAttribute -ManifestPath $ManifestPath -Node 'uap3'
+        Add-ManifestAttribute -ManifestPath $ManifestPath -Node 'desktop'
 
         # Get the manifest content
         [xml]$xml = Get-Content -Path $ManifestPath
@@ -1159,7 +1159,7 @@ function Add-ExecutionAlias(){
         {
             $executableVfs = $executableVfs.Replace("%20"," ")
             $vfsPath = (Get-Item -Path $ManifestPath).DirectoryName + '\VFS'
-            Rename-UnpackedFiles -VfsPath $vfsPath
+            Rename-UnpackedMSIX -VfsPath $vfsPath
         }
 
         # Parse out the alias name
