@@ -152,9 +152,9 @@ foreach ($item in $cleanupItems)
 # Sign MSIX
 if ($CertPasswordRequired -eq $true)
 {
-    Set-MSIXPackageSignature -Certificate $Certificate -MsixFile "$msixPath\$($displayName)\$($displayName).msix" -Password $password
+    Add-MSIXPackageSignature -Certificate $Certificate -MsixFile "$msixPath\$($displayName)\$($displayName).msix" -Password $password
 }
 else
 {
-    Set-MSIXPackageSignature -Certificate $Certificate -MsixFile "$msixPath\$($displayName)\$($displayName).msix"
+    Add-MSIXPackageSignature -Certificate $Certificate -MsixFile "$msixPath\$($displayName)\$($displayName).msix"
 }

@@ -528,7 +528,7 @@ function Open-Msix(){
     .PARAMETER Password
         Specifies a password if required for the .pfx certificate.
 #>
-function Set-MSIXPackageSignature(){
+function Add-MSIXPackageSignature(){
     [CmdletBinding()]
     param
     (
@@ -745,7 +745,7 @@ function Get-CertPublisher(){
     .PARAMETER NewIcon
         Specifies the full path to the icon file that you wish to change the MSIX icon to.
 #>
-function Set-MsixIcon(){
+function Add-MsixIcon(){
     [CmdletBinding()]
     param
     (
@@ -888,7 +888,7 @@ function Add-ManifestApplication(){
     try
     {
         # Set a new icon
-        Set-MsixIcon -ManifestPath $ManifestPath -NewIcon $NewIcon
+        Add-MsixIcon -ManifestPath $ManifestPath -NewIcon $NewIcon
         $icon = (Get-Item -Path $NewIcon).Name
 
         # Handle uap declarations
@@ -1071,7 +1071,7 @@ function Rename-UnpackedMSIX(){
         Specifies the ID of the application node inside the manifest that corresponds with the service you wish to
         remove.
 #>
-function Remove-MsixService(){
+function Disable-MsixService(){
     [CmdletBinding()]
     param
     (

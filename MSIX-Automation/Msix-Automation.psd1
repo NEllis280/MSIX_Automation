@@ -67,8 +67,8 @@
 
     # Functions to export from this module
     FunctionsToExport = @('Confirm-WingetUtility', 'Confirm-MsixPackagingTool', 'Confirm-Windows10Sdk', 'Get-NewAppVersionWinget', 'Get-Installer', 'Format-MsixVersion',
-    'ConvertTo-Msix', 'Open-Msix', 'Set-MSIXPackageSignature', 'Save-MsixFromUnpacked', 'Get-MSIInformation', 'Get-CertPublisher', 'Set-MsixIcon', 'Add-ManifestAttribute',
-    'Add-ManifestApplication', 'Rename-UnpackedMSIX', 'Remove-MsixService', 'Add-ExecutionAlias')
+    'ConvertTo-Msix', 'Open-Msix', 'Add-MSIXPackageSignature', 'Save-MsixFromUnpacked', 'Get-MSIInformation', 'Get-CertPublisher', 'Add-MsixIcon', 'Add-ManifestAttribute',
+    'Add-ManifestApplication', 'Rename-UnpackedMSIX', 'Disable-MsixService', 'Add-ExecutionAlias')
 
     # Cmdlets to export from this module
     CmdletsToExport = '*'
