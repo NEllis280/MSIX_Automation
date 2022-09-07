@@ -66,9 +66,9 @@
     # NestedModules = @()
 
     # Functions to export from this module
-    FunctionsToExport = @('Confirm-WingetUtility', 'Confirm-MsixPackagingTool', 'Confirm-Windows10Sdk', 'Get-NewAppVersionWinget', 'Get-Installer', 'Format-MsixVersion', 
-    'ConvertTo-Msix', 'Open-Msix', 'Set-MSIXPackageSignature', 'Save-MsixFromUnpacked', 'Get-MSIProperties', 'Get-CertPublisher', 'Set-MsixIcon', 'Add-ManifestAttributes',
-    'Add-ManifestApplication', 'Rename-UnpackedFiles', 'Remove-MsixService', 'Add-ExecutionAlias')
+    FunctionsToExport = @('Confirm-WingetUtility', 'Confirm-MsixPackagingTool', 'Confirm-Windows10Sdk', 'Get-NewAppVersionWinget', 'Get-Installer', 'Format-MsixVersion',
+    'ConvertTo-Msix', 'Open-Msix', 'Set-MSIXPackageSignature', 'Save-MsixFromUnpacked', 'Get-MSIInformation', 'Get-CertPublisher', 'Set-MsixIcon', 'Add-ManifestAttribute',
+    'Add-ManifestApplication', 'Rename-UnpackedMSIX', 'Remove-MsixService', 'Add-ExecutionAlias')
 
     # Cmdlets to export from this module
     CmdletsToExport = '*'
