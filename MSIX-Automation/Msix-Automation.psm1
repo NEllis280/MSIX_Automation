@@ -24,7 +24,7 @@ function Confirm-WingetUtility(){
 
         [version]$version = (Get-AppxPackage -Name Microsoft.DesktopAppInstaller).Version
 
-        if ([version]$version -lt 1.2 -and $Update -eq $true)
+        if ([version]$version -lt 1.2 -and $PSBoundParameters.ContainsKey('Update'))
         {
             Get-CimInstance -Namespace "Root\cimv2\mdm\dmmap" -ClassName "MDM_EnterpriseModernAppManagement_AppManagement01" | Invoke-CimMethod -MethodName UpdateScanMethod
 
@@ -108,7 +108,7 @@ function Confirm-Windows10Sdk(){
 
         $path = Test-Path -Path 'C:\Program Files (x86)\Windows Kits\10'
 
-        if ($path -eq $false -and $AutoInstall -eq $true)
+        if ($path -eq $false -and $PSBoundParameters.ContainsKey('AutoInstall'))
         {
             Winget Install Microsoft.WindowsSDK --Source Winget --Accept-Source-Agreements --Accept-Package-Agreements --Silent
 
