@@ -166,7 +166,7 @@ function Get-NewAppVersionWinget(){
 
         $latestVersion = ($latest | Where-Object -FilterScript {$_ -like 'Version*'}).Split(" ")[1]
 
-        $downloadLink = ($latest | Where-Object -FilterScript {$_ -like '*Download Url:*'}).Split(":",2)[1]
+        $downloadLink = (($latest | Where-Object -FilterScript {$_ -like '*Download Url:*'}).Split(":",2)[1]).Trim(' ')
 
         Return @{
             LatestVersion = $latestVersion
